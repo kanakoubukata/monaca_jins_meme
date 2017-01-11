@@ -1,0 +1,193 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta http-equiv="Content-Security-Policy" content="default-src * data:; style-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'">
+  <script src="components/loader.js"></script>
+  <script src="lib/onsenui/js/onsenui.min.js"></script>
+
+  <link rel="stylesheet" href="components/loader.css">
+  <link rel="stylesheet" href="lib/onsenui/css/onsenui.css">
+  <link rel="stylesheet" href="lib/onsenui/css/onsen-css-components.css">
+  <link rel="stylesheet" href="css/style.css">
+
+  <style>
+    #icon-body {
+        transition-property: transform;
+        transition-duration: 0.1s;
+    }
+  </style>
+  <script>
+    // 起動時のイベント
+    document.addEventListener('deviceready', function() {
+        // アプリの初期化処理
+        cordova.plugins.JinsMemePlugin.setAppClientID(
+            '414947516302664',
+            'nmxwar55pkw3p90pff3hgro8jhyb1apg',
+            function() {
+                restartScan();
+            },
+            function() {
+                console.log('Error: setAppClientID');
+            }
+        );
+    });
+    
+    // デバイスのスキャン開始
+    function startScan() {
+        // デバイス選択ダイアログを表示
+        var deviceList = document.getElementById('deviceList');
+        deviceList.innerHTML = '<ons-list-header>デバイスを選択</ons-list-header>';
+        document.getElementById('selectDeviceDialog').show();
+        
+        cordova.plugins.JinsMemePlugin.startScan(function(device) {
+            // ダイアログにデバイスを追加
+            deviceList.innerHTML += `<ons-list-item tappable onclick="connect('${device}')">${device}</ons-list-item>`;
+        }, function() {
+            console.log('Error: startScan');
+        });                
+    }
+    
+    // デバイスのスキャン停止
+    function stopScan(successCallback) {
+        cordova.plugins.JinsMemePlugin.stopScan(function() {
+            if(successCallback) successCallback();
+        }, function() {
+            console.log('Error: stopScan');
+        });
+    }
+    
+    // デバイスのスキャン再開
+    function restartScan() {
+        stopDataReport();
+        disconnect();
+        stopScan(startScan);
+    }
+    
+    // アプリとJINS MEMEの接続
+    function connect(device) {
+        // スキャン停止
+        stopScan();
+        // ダイアログを閉じてモーダルを表示
+        document.getElementById('selectDeviceDialog').hide();
+        document.getElementById('modal').show();
+                
+        // 選択されたデバイスに接続
+        cordova.plugins.JinsMemePlugin.connect(device, function() {
+            startDataReport();
+        }, function() {
+            console.log('Disconnect');
+        }, function() {
+            console.log('Error: connect');
+            document.getElementById('modal').hide();
+        });
+    }
+    
+    // アプリとJINS MEMEの切断
+    function disconnect() {
+        cordova.plugins.JinsMemePlugin.disconnect(function() {}, function() {
+            console.log('Error: disconnect');
+        });
+    }
+    
+    // 計測開始
+    function startDataReport() {
+        cordova.plugins.JinsMemePlugin.startDataReport(draw, function() {
+            console.log('Error: startDataReport');
+            document.getElementById('modal').hide();
+        });
+    }
+    
+    // 計測結果を描画する
+    function draw(data) {
+        document.getElementById('modal').hide();
+        var tabIndex = document.getElementById('tabbar').getActiveTabIndex();
+        if (tabIndex === 0) {
+            // まばたきされたらアイコンを変更する
+            if(data.blinkSpeed > 0 || data.blinkStrength > 0) {
+                document.getElementById('icon-eye').setAttribute('icon', 'eye-slash');
+            } else {
+                document.getElementById('icon-eye').setAttribute('icon', 'eye');
+            }
+        } else if(tabIndex === 1) {
+            // 姿勢角Rollに合わせてアイコンを傾ける
+            var deg = data.roll * -1;
+            document.getElementById('icon-body').style['transform'] = `rotate(${deg}deg)`;
+        }
+    }
+
+    // 計測停止
+    function stopDataReport() {
+        cordova.plugins.JinsMemePlugin.stopDataReport(function() {}, function() {
+            console.log('Error: stopDataReport');
+        });
+    }
+    
+    // プラグアイコン押下時
+    function reconnect() {
+        ons.notification.confirm("再接続しますか？")
+        .then(function(result) {
+           if(result) {
+               restartScan();
+           }
+        });
+    }
+    
+  </script>
+</head>
+<body>
+  <ons-page>
+    <!-- ツールバー -->
+    <ons-toolbar>
+      <div class="center">JINS MEME</div>
+      <div class="right">
+        <ons-toolbar-button>
+            <ons-icon icon="plug" size="24px" onclick="reconnect()"></ons-icon>
+        </ons-toolbar-button>
+      </div>
+    </ons-toolbar>
+    
+    <!-- タブバー -->
+    <ons-tabbar position="auto" id="tabbar">
+      <ons-tab label="Eye" page="tab1.html" icon="eye" active>
+      </ons-tab>
+      <ons-tab label="Body" page="tab2.html" icon="male">
+      </ons-tab>
+    </ons-tabbar>
+  </ons-page>
+
+  <!-- Eyeタブ -->
+  <ons-template id="tab1.html">
+    <ons-page id="first-page">
+      <div style="text-align: center;">
+        <p>まばたきを検出します。</p>
+        <ons-icon id="icon-eye" icon="eye" size="200px"></ons-icon>
+      </div>
+    </ons-page>
+  </ons-template>
+
+  <!-- Bodyタブ -->
+  <ons-template id="tab2.html">
+    <ons-page id="second-page">
+      <div style="text-align: center;">
+        <p>体の傾きを検出します。</p>
+        <ons-icon id="icon-body" icon="male" size="200px"></ons-icon>
+      </div>
+    </ons-page>
+  </ons-template>
+  
+  <!-- デバイス選択ダイアログ -->
+  <ons-dialog id="selectDeviceDialog">
+    <ons-list id="deviceList">
+    </ons-list>
+  </ons-dialog>
+  
+  <!-- モーダルウィンドウ -->
+  <ons-modal id="modal">
+    <p>接続中...</p>
+    <ons-icon icon="spinner" size="28px" spin></ons-icon>
+  </ons-modal>
+      
+</body>
+</html>
