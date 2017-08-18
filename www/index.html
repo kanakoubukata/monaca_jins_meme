@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <meta http-equiv="Content-Security-Policy" content="default-src * data:; style-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'">
+  <meta http-equiv="Content-Security-Policy" content="default-src * data: gap: https://ssl.gstatic.com; style-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'">
   <script src="components/loader.js"></script>
   <script src="lib/onsenui/js/onsenui.min.js"></script>
 
@@ -17,14 +17,18 @@
         transition-property: transform;
         transition-duration: 0.1s;
     }
+    .dialog-container{
+        height: 500px;
+        overflow-y: scroll;
+    }
   </style>
   <script>
     // 起動時のイベント
     document.addEventListener('deviceready', function() {
         // アプリの初期化処理
         cordova.plugins.JinsMemePlugin.setAppClientID(
-            '414947516302664',
-            'nmxwar55pkw3p90pff3hgro8jhyb1apg',
+            'アプリID',
+            'アプリSecret',
             function() {
                 restartScan();
             },
@@ -43,10 +47,10 @@
         
         cordova.plugins.JinsMemePlugin.startScan(function(device) {
             // ダイアログにデバイスを追加
-            deviceList.innerHTML += `<ons-list-item tappable onclick="connect('${device}')">${device}</ons-list-item>`;
+            deviceList.innerHTML += "<ons-list-item tappable onclick=\"connect('" + device + "')\">" + device + "</ons-list-item>";
         }, function() {
             console.log('Error: startScan');
-        });                
+        });
     }
     
     // デバイスのスキャン停止
@@ -65,7 +69,7 @@
         stopScan(startScan);
     }
     
-    // アプリとJINS MEMEの接続
+    // アプリとデバイスの接続
     function connect(device) {
         // スキャン停止
         stopScan();
@@ -84,7 +88,7 @@
         });
     }
     
-    // アプリとJINS MEMEの切断
+    // アプリとデバイスの切断
     function disconnect() {
         cordova.plugins.JinsMemePlugin.disconnect(function() {}, function() {
             console.log('Error: disconnect');
@@ -93,7 +97,10 @@
     
     // 計測開始
     function startDataReport() {
-        cordova.plugins.JinsMemePlugin.startDataReport(draw, function() {
+        cordova.plugins.JinsMemePlugin.startDataReport(function(data) {
+            document.getElementById('modal').hide();
+            draw(data);
+        }, function() {
             console.log('Error: startDataReport');
             document.getElementById('modal').hide();
         });
@@ -101,19 +108,21 @@
     
     // 計測結果を描画する
     function draw(data) {
-        document.getElementById('modal').hide();
-        var tabIndex = document.getElementById('tabbar').getActiveTabIndex();
+        var tabbar = document.getElementById('tabbar');
+        var tabIndex = tabbar.getActiveTabIndex();
         if (tabIndex === 0) {
             // まばたきされたらアイコンを変更する
+            var eye = document.getElementById('icon-eye');
             if(data.blinkSpeed > 0 || data.blinkStrength > 0) {
-                document.getElementById('icon-eye').setAttribute('icon', 'eye-slash');
+                eye.setAttribute('icon', 'eye-slash');
             } else {
-                document.getElementById('icon-eye').setAttribute('icon', 'eye');
+                eye.setAttribute('icon', 'eye');
             }
         } else if(tabIndex === 1) {
             // 姿勢角Rollに合わせてアイコンを傾ける
-            var deg = data.roll * -1;
-            document.getElementById('icon-body').style['transform'] = `rotate(${deg}deg)`;
+            var body = document.getElementById('icon-body');
+            var deg = data.roll ;//* -1;
+            body.style['transform'] = "rotate(" + deg + "deg)";
         }
     }
 
@@ -133,7 +142,6 @@
            }
         });
     }
-    
   </script>
 </head>
 <body>
@@ -179,7 +187,7 @@
   
   <!-- デバイス選択ダイアログ -->
   <ons-dialog id="selectDeviceDialog">
-    <ons-list id="deviceList">
+    <ons-list id="deviceList">    
     </ons-list>
   </ons-dialog>
   
